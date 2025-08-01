@@ -4,5 +4,12 @@
     "description": "A site to show a hello world example of using Netlify Functions",
     "author": "Netlify",
     "license": "ISC",
-    "type": "module"
+    "type": "module",
+    "dependencies": {
+      "@netlify/blobs": "^2.0.0",
+      "express": "^4.19.2",
+      "serverless-http": "^3.2.0",
+      "body-parser": "^1.20.2",
+      "node-fetch": "^2.6.1"
+  }
 }
