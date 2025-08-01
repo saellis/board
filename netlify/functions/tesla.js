@@ -2,20 +2,7 @@
 // For this to work, you'll need to install the following dependencies:
 // npm install express serverless-http @netlify/blobs
 
-// You will also need to configure your Netlify site with a `netlify.toml` file
-// that defines the blob store, and a `NETLIFY_BLOBS_TOKEN` environment variable.
-// Example netlify.toml:
-/*
-[functions]
-  node_bundler = "esbuild"
-
-[[blobs]]
-  name = "my-store"
-*/
-
 // Import necessary modules
-const express = require('express');
-const serverless = require('serverless-http');
 const bodyParser = require('body-parser');
 const { get, set } = require('@netlify/blobs');
 const fetch = require('node-fetch'); // Using node-fetch for API calls
