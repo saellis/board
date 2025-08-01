@@ -1,6 +1,11 @@
 [build]
-  publish = "public"
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ."
+  # The build command to run. We run 'npm install' to ensure all dependencies
+  # are available for the bundling process, then 'npm run build' which
+  # will echo "No build required" as per your package.json.
+  command = "npm install && npm run build"
+  # The directory to publish after the build.
+  # Since this is a functions-only project, we set it to the root directory (.).
+  publish = "."
 
 [dev]
   publish = "public"
@@ -9,3 +14,11 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# This section configures the Netlify Blobs store.
+# It is necessary for the serverless function to access persistent storage.
+[[blobs]]
+  # The name of the blob store. This must match the name used in your JavaScript code (e.g., 'my-store').
+  name = "my-store"
+
+
