@@ -175,17 +175,12 @@ app.get('/tesla', async (req, res) => {
   }
 });
 
+export default async (req) => {
+  // Get the name from query parameters
+  const url = new URL(req.url);
+  const name = url.searchParams.get('name') || 'World';
 
-// --- Other existing handlers (omitted for brevity, assume they are still here) ---
-
-// --- Export the handler for Netlify ---
-// This is the main handler function that Netlify will invoke.
-// We use 'serverless-http' to wrap our Express app into a format
-// that a Netlify function can understand.
-exports.handler = serverless(app, {
-  // This is an important option. We need to set the Express base path
-  // to '/.netlify/functions/api' so it can correctly handle the routes.
-  // This makes it so Express doesn't think the function path is part of the route.
-  base: '/.netlify/functions/api',
-});
+  // Return a Response object
+  return new Response(`Hello tesla!`);
+};
 
