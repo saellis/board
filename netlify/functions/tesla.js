@@ -105,8 +105,10 @@ async function getValidTeslaToken() {
 
 // --- GET Request Handler for Tesla data ---
 // This route will fetch the current solar generation from the Tesla API.
-app.get('/tesla', async (req, res) => {
-  // Ensure all necessary environment variables are set
+  export default async (req) => {
+  
+  let res = new Response();
+  // Ensure all necessary environment variables are set 
   if (!TESLA_CLIENT_ID || !TESLA_CLIENT_SECRET || !TESLA_REFRESH_TOKEN) {
     return res.status(500).json({
       error: 'Tesla API credentials (client ID, client secret, and refresh token) are not configured in Netlify environment variables.',
@@ -173,14 +175,5 @@ app.get('/tesla', async (req, res) => {
       error: 'An unexpected error occurred while fetching Tesla data.',
     });
   }
-});
-
-export default async (req) => {
-  // Get the name from query parameters
-  const url = new URL(req.url);
-  const name = url.searchParams.get('name') || 'World';
-
-  // Return a Response object
-  return new Response(`Hello tesla!`);
 };
 
