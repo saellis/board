@@ -9,5 +9,8 @@
       "@netlify/blobs": "^2.0.0",
       "body-parser": "^1.20.2",
       "node-fetch": "^2.6.1"
-  }
+    },
+    "scripts": {
+	"build": "echo 'no build required'"
+    }
 }
