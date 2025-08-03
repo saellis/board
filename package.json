@@ -1,16 +1,32 @@
 {
-    "name": "netlify-example-hello-functions",
-    "version": "1.0.0",
-    "description": "A site to show a hello world example of using Netlify Functions",
-    "author": "Netlify",
-    "license": "ISC",
-    "type": "module",
-    "dependencies": {
-      "@netlify/blobs": "^2.0.0",
-      "body-parser": "^1.20.2",
-      "node-fetch": "^2.6.1"
-    },
-    "scripts": {
-	"build": "echo 'no build required'"
-    }
+  "name": "netlify-express",
+  "version": "0.0.1",
+  "description": "Example of how to deploy a Express.js Netlify app.",
+  "main": "functions/server.js",
+  "scripts": {
+    "build": "netlify-lambda build express",
+    "start": "nodemon server-local.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neverendingqs/netlify-express.git"
+  },
+  "keywords": [
+    "netlify",
+    "express.js"
+  ],
+  "author": "neverendingqs",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/neverendingqs/netlify-express/issues"
+  },
+  "homepage": "https://github.com/neverendingqs/netlify-express#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "netlify-lambda": "^1.6.3",
+    "nodemon": "^1.19.2",
+    "serverless-http": "^2.3.0"
+  }
 }
