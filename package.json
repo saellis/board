@@ -1,27 +1,23 @@
 {
-  "name": "netlify-express",
+  "name": "board",
   "version": "0.0.1",
-  "description": "Example of how to deploy a Express.js Netlify app.",
+  "description": "Backend server for my LED board",
   "main": "functions/server.js",
   "scripts": {
     "start": "node express/server.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/neverendingqs/netlify-express.git"
+    "url": "git+https://github.com/saellis/board.git"
   },
   "keywords": [
     "netlify",
     "express.js"
   ],
-  "author": "neverendingqs",
+  "author": "saellis",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/neverendingqs/netlify-express/issues"
-  },
-  "homepage": "https://github.com/neverendingqs/netlify-express#readme",
+  "homepage": "https://github.com/saellis/board#readme",
   "devDependencies": {
-    "body-parser": "^2.2.0",
     "express": "^5.1.0",
     "serverless-http": "^3.2.0"
   }
