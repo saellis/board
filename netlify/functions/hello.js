@@ -1,6 +1,7 @@
 exports.handler = function (event, context, callback) {
-  callback(null, {
+  const name = event.queryStringParameters.name || "World";
+  return {
     statusCode: 200,
-    body: "Hello, World",
-  });
+    body: `Hello, ${name}`,
+  };
 };
