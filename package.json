@@ -4,7 +4,6 @@
   "description": "Example of how to deploy a Express.js Netlify app.",
   "main": "functions/server.js",
   "scripts": {
-    "build": "npm install && npm run build",
     "start": "nodemon server-local.js"
   },
   "repository": {
