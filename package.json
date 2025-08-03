@@ -2,10 +2,6 @@
   "name": "board",
   "version": "0.0.1",
   "description": "Backend server for my LED board",
-  "main": "functions/server.js",
-  "scripts": {
-    "start": "node express/server.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/saellis/board.git"
