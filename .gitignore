@@ -38,3 +38,6 @@ jspm_packages
 
 functions
 
+
+# Local Netlify folder
+.netlify
