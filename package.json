@@ -4,7 +4,7 @@
   "description": "Example of how to deploy a Express.js Netlify app.",
   "main": "functions/server.js",
   "scripts": {
-    "build": "netlify-lambda build express",
+    "build": "npm install && npm run build",
     "start": "nodemon server-local.js"
   },
   "repository": {
@@ -24,7 +24,6 @@
   "devDependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
-    "netlify-lambda": "^2.0.16",
     "nodemon": "^3.1.10",
     "serverless-http": "^3.2.0"
   }
