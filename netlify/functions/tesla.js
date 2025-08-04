@@ -1,9 +1,3 @@
-// This is a simple Netlify serverless function using Express.js and Netlify Blobs.
-// For this to work, you'll need to install the following dependencies:
-// npm install express serverless-http @netlify/blobs
-
-
-
 import fetch from 'node-fetch';
 import { getStore, connectLambda } from '@netlify/blobs';
 
@@ -25,49 +19,11 @@ const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN;
 // A blob key to store the access token for caching
 const TESLA_ACCESS_TOKEN_BLOB_KEY = 'tesla_access_token';
 const CURRENT_STATE_BLOB_KEY = 'tesla_current_state';
-const CURRENT_AUTH_CODE_BLOB_KEY = 'tesla_current_auth_code';
 
-/**
- * Refreshes the Tesla access token using the refresh token and caches it.
- * @returns {Promise<string|null>} The new access token or null on failure.
- */
-async function refreshTeslaToken() {
-    const payload = {
-        grant_type: 'refresh_token',
-        client_id: TESLA_CLIENT_ID,
-        client_secret: TESLA_CLIENT_SECRET,
-        refresh_token: TESLA_REFRESH_TOKEN,
-        scope: TESLA_SCOPES
-    };
-
-    try {
-        const response = await fetch(TESLA_TOKEN_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-
-        if (response.ok && data.access_token) {
-            console.log("Successfully refreshed access token.");
-            const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-            const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
-            await store.setJSON(TESLA_ACCESS_TOKEN_BLOB_KEY, {
-                accessToken: data.access_token,
-                expiresAt: expiresAt
-            });
-            return data.access_token;
-        } else {
-            console.error("Failed to refresh token:", data);
-            return null;
-        }
-    } catch (error) {
-        console.error("Exception during token refresh:", error);
-        return null;
-    }
-}
-
-
+// Pushover API configuration for iOS notifications
+const PUSHOVER_API_TOKEN = process.env.PUSHOVER_API_TOKEN;
+const PUSHOVER_USER_KEY = process.env.PUSHOVER_USER_KEY;
+const PUSHOVER_API_URL = "https://api.pushover.net/1/messages.json";
 
 /**
  * Retrieves a valid Tesla access token, refreshing it if necessary, using blob store for persistence.
@@ -108,6 +64,40 @@ async function getValidTeslaToken(callbackUrl) {
 
 
 /**
+ * Sends a Pushover notification with the Tesla OAuth authorization URL.
+ * @param {string} authUrl - The Tesla OAuth authorization URL to send.
+ */
+async function sendPushoverAuthUrlNotification(authUrl) {
+    if (!PUSHOVER_API_TOKEN || !PUSHOVER_USER_KEY) {
+        console.warn('Pushover API credentials are not set. Skipping notification.');
+        return;
+    }
+    const message = `Tesla OAuth authorization required.\n\nOpen this URL to authorize:\n${authUrl}`;
+    try {
+        const response = await fetch(PUSHOVER_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                token: PUSHOVER_API_TOKEN,
+                user: PUSHOVER_USER_KEY,
+                title: 'Tesla OAuth Authorization',
+                message: message,
+                url: authUrl,
+                url_title: 'Authorize Tesla App',
+                priority: 1
+            })
+        });
+        if (!response.ok) {
+            console.error('Failed to send Pushover notification:', response.status, response.statusText);
+        } else {
+            console.log('Pushover notification sent successfully.');
+        }
+    } catch (error) {
+        console.error('Exception sending Pushover notification:', error);
+    }
+}
+
+/**
  * Initiates the Tesla OAuth authorization process (user login/consent) and updates the blob store.
  * Follows the logic of tesla2.py's start_authorization_process: generates state, builds auth URL, and returns it for user interaction.
  * @param {object} context - Context for the OAuth flow (must include callbackUrl and a returnAuthUrl function).
@@ -126,75 +116,13 @@ async function authorize(callbackUrl) {
     });
     const authUrl = `${TESLA_AUTH_URL}?${params.toString()}`;
 
-    // 4. Return the auth URL to the client (or redirect, depending on environment)
-    console.log(`Please visit this URL to authorize: ${authUrl}`);
-    // TODO: Send pushover notification here
-
-
-
+    // 4. Set state and ask user to authenticate
     const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
     await store.set(CURRENT_STATE_BLOB_KEY, state);
-    // set the auth code key to null in case there is a stale value
-    await store.set(CURRENT_AUTH_CODE_BLOB_KEY, null);
-    console.log("OAuth authorization URL generated. User must now complete login/consent.");
-    // 1. Poll blob store: 'tesla_current_auth_code'. Once this is set, the user has completed authorization
-    // and the tesla-callback function will have stored the code in the blob store
-
-    let code = null;
-    let pollAttempts = 0;
-    const maxPollAttempts = 60; // e.g., poll for up to 60 seconds
-    const pollIntervalMs = 1000;
-    while (pollAttempts < maxPollAttempts) {
-        code = await store.get(CURRENT_AUTH_CODE_BLOB_KEY);
-        // If we found the code, break out of the loop
-        if (code) break;
-        await new Promise(res => setTimeout(res, pollIntervalMs));
-        pollAttempts++;
-    }
-
-    if (!code) {
-        console.error('Timed out waiting for authorization code in blob store.');
-        return null;
-    }
-
-    // 2. Exchange the code for tokens and store them securely in blob store
-    try {
-        const payload = {
-            grant_type: 'authorization_code',
-            client_id: TESLA_CLIENT_ID,
-            client_secret: TESLA_CLIENT_SECRET,
-            code: code,
-            redirect_uri: callbackUrl,
-            scope: TESLA_SCOPES
-        };
-        const response = await fetch(TESLA_TOKEN_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-            console.error('Failed to exchange code for token:', response.status, response.statusText);
-            return null;
-        }
-        const data = await response.json();
-        if (response.ok && data.access_token) {
-            const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-            await store.setJSON(TESLA_ACCESS_TOKEN_BLOB_KEY, {
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token,
-                expiresAt: expiresAt
-            });
-            // Clear the auth code blob
-            await store.set(CURRENT_AUTH_CODE_BLOB_KEY, null);
-            return data.access_token;
-        } else {
-            console.error('Failed to exchange code for token:', data);
-            return null;
-        }
-    } catch (error) {
-        console.error('Exception during token exchange:', error);
-        return null;
-    }
+    console.log(`Asking user to authenticate via this URL: ${authUrl}`);
+    // Send the authorization URL via Pushover
+    await sendPushoverAuthUrlNotification(authUrl);
+    return {'statusCode': 418, 'body': 'Authorization URL sent to user. Please complete the authorization process.'};
 }
 
 /**
@@ -246,10 +174,6 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
 }
 
 // The main handler function for the Netlify Function.
-// It receives a Request object and must return a Response object.
-
-
-
 export const handler = async (event, context) => {
     connectLambda(event);
 
@@ -287,6 +211,10 @@ export const handler = async (event, context) => {
     const callbackUrl = `${process.env.URL}${TESLA_REDIRECT_URI_BASE}`;
 
     const accessToken = await getValidTeslaToken(callbackUrl);
+    // If accessToken is a 418 response object, return it (authorization URL sent)
+    if (accessToken && accessToken.statusCode === 418) {
+        return accessToken;
+    }
     if (!accessToken) {
         return jsonResponse(500, {
             error: 'Failed to obtain a valid Tesla access token.',
