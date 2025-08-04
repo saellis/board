@@ -1,7 +1,3 @@
-// The main handler function for the Netlify Function.
-// It receives a Request object and must return a Response object.
-
-
 import { getStore, connectLambda } from '@netlify/blobs';
 
 

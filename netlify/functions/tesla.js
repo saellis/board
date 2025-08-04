@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { getStore, connectLambda } from '@netlify/blobs';
+import { sendPushoverAuthUrlNotification } from '../../utilities/pushover.js';
 
 // The API key for this service to only allow authorized requests
 const BOARD_API_KEY = process.env.API_KEY; 
@@ -19,11 +20,6 @@ const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN;
 // A blob key to store the access token for caching
 const TESLA_ACCESS_TOKEN_BLOB_KEY = 'tesla_access_token';
 const CURRENT_STATE_BLOB_KEY = 'tesla_current_state';
-
-// Pushover API configuration for iOS notifications
-const PUSHOVER_API_TOKEN = process.env.PUSHOVER_API_TOKEN;
-const PUSHOVER_USER_KEY = process.env.PUSHOVER_USER_KEY;
-const PUSHOVER_API_URL = "https://api.pushover.net/1/messages.json";
 
 /**
  * Retrieves a valid Tesla access token, refreshing it if necessary, using blob store for persistence.
@@ -63,39 +59,6 @@ async function getValidTeslaToken(callbackUrl) {
 }
 
 
-/**
- * Sends a Pushover notification with the Tesla OAuth authorization URL.
- * @param {string} authUrl - The Tesla OAuth authorization URL to send.
- */
-async function sendPushoverAuthUrlNotification(authUrl) {
-    if (!PUSHOVER_API_TOKEN || !PUSHOVER_USER_KEY) {
-        console.warn('Pushover API credentials are not set. Skipping notification.');
-        return;
-    }
-    const message = `Tesla OAuth authorization required.\n\nOpen this URL to authorize:\n${authUrl}`;
-    try {
-        const response = await fetch(PUSHOVER_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                token: PUSHOVER_API_TOKEN,
-                user: PUSHOVER_USER_KEY,
-                title: 'Tesla OAuth Authorization',
-                message: message,
-                url: authUrl,
-                url_title: 'Authorize Tesla App',
-                priority: 1
-            })
-        });
-        if (!response.ok) {
-            console.error('Failed to send Pushover notification:', response.status, response.statusText);
-        } else {
-            console.log('Pushover notification sent successfully.');
-        }
-    } catch (error) {
-        console.error('Exception sending Pushover notification:', error);
-    }
-}
 
 /**
  * Initiates the Tesla OAuth authorization process (user login/consent) and updates the blob store.
