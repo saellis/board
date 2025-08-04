@@ -138,19 +138,21 @@ async function authorize(callbackUrl) {
 
 
 
-    const blobStore = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
-    store.set(CURRENT_STATE_BLOB_KEY, state);
+    const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
+    await store.set(CURRENT_STATE_BLOB_KEY, state);
+    // set the auth code key to null in case there is a stale value
+    await store.set(CURRENT_AUTH_CODE_BLOB_KEY, null);
     console.log("OAuth authorization URL generated. User must now complete login/consent.");
     // 1. Poll blob store: 'tesla_current_auth_code'. Once this is set, the user has completed authorization
     // and the tesla-callback function will have stored the code in the blob store
-    const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
 
     let code = null;
     let pollAttempts = 0;
     const maxPollAttempts = 60; // e.g., poll for up to 60 seconds
     const pollIntervalMs = 1000;
     while (pollAttempts < maxPollAttempts) {
-        code = await blobStore.get(CURRENT_AUTH_CODE_BLOB_KEY);
+        code = await store.get(CURRENT_AUTH_CODE_BLOB_KEY);
+        // If we found the code, break out of the loop
         if (code) break;
         await new Promise(res => setTimeout(res, pollIntervalMs));
         pollAttempts++;
@@ -171,22 +173,22 @@ async function authorize(callbackUrl) {
             redirect_uri: callbackUrl,
             scope: TESLA_SCOPES
         };
+        console.log('Exchanging authorization code for access token:', payload);
         const response = await fetch(TESLA_TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         const data = await response.json();
-
         if (response.ok && data.access_token) {
             const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-            await blobStore.setJSON(TESLA_ACCESS_TOKEN_BLOB_KEY, {
+            await store.setJSON(TESLA_ACCESS_TOKEN_BLOB_KEY, {
                 accessToken: data.access_token,
                 refreshToken: data.refresh_token,
                 expiresAt: expiresAt
             });
             // Clear the auth code blob
-            await blobStore.set(CURRENT_AUTH_CODE_BLOB_KEY, null);
+            await store.set(CURRENT_AUTH_CODE_BLOB_KEY, null);
             return data.access_token;
         } else {
             console.error('Failed to exchange code for token:', data);

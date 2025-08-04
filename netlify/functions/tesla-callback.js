@@ -2,7 +2,7 @@
 // It receives a Request object and must return a Response object.
 
 
-import { connectLambda } from '@netlify/blobs';
+import { getStore, connectLambda } from '@netlify/blobs';
 
 
 const BLOB_STORE_NAME = 'tokens'; // A dedicated name for your blob store
@@ -30,6 +30,7 @@ export const handler = async (event, context) => {
   }
 
   if (code) {
+    console.log('TESLA-CALLBACK: Received authorization code:', code);
     // Store the code and state for further processing (e.g., token exchange)
     await store.set(CURRENT_AUTH_CODE_BLOB_KEY, code);
     return {
