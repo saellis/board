@@ -16,11 +16,18 @@ const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 export const handler = async (event, context) => {
     console.log('Spotify callback handler invoked');
     connectLambda(event);
+    // Extract 'code' from query string
+    if (!event.queryStringParameters || !event.queryStringParameters.code) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Missing code parameter in callback URL.' })
+        };
+    }
     // Exchange code for token
     const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
     const params2 = new URLSearchParams({
         grant_type: 'authorization_code',
-        code: code,
+        code: event.queryStringParameters.code,
         redirect_uri: SPOTIFY_REDIRECT_URI,
     });
     const resp = await fetch(SPOTIFY_TOKEN_URL, {
@@ -40,9 +47,15 @@ export const handler = async (event, context) => {
         if (data.refresh_token) {
             await store.set(SPOTIFY_REFRESH_BLOB_KEY, data.refresh_token);
         }
-        return data.access_token;
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ success: true })
+        };
     } else {
-        return null;
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Failed to exchange code for token', details: data })
+        };
     }
 
 };
