@@ -2,9 +2,10 @@
 // For this to work, you'll need to install the following dependencies:
 // npm install express serverless-http @netlify/blobs
 
-// Import necessary modules
-const { getStore, connectLambda } = require('@netlify/blobs');
-const fetch = require('node-fetch');
+
+
+import fetch from 'node-fetch';
+import { getStore, connectLambda } from '@netlify/blobs';
 
 // Tesla API Configuration from environment variables
 const TESLA_CLIENT_ID = process.env.TESLA_CLIENT_ID;
@@ -217,7 +218,9 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
 // The main handler function for the Netlify Function.
 // It receives a Request object and must return a Response object.
 
-exports.handler = async (event, context) => {
+
+
+export const handler = async (event, context) => {
   connectLambda(event);
 
 

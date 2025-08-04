@@ -15,5 +15,6 @@
   "devDependencies": {
     "@netlify/blobs": "^10.0.8",
     "node-fetch": "^2.6.1"
-  }
+  },
+  "type": "module"
 }
