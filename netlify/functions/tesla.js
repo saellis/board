@@ -7,6 +7,9 @@
 import fetch from 'node-fetch';
 import { getStore, connectLambda } from '@netlify/blobs';
 
+// The API key for this service to only allow authorized requests
+const BOARD_API_KEY = process.env.API_KEY; 
+
 // Tesla API Configuration from environment variables
 const TESLA_CLIENT_ID = process.env.TESLA_CLIENT_ID;
 const TESLA_CLIENT_SECRET = process.env.TESLA_CLIENT_SECRET;
@@ -18,7 +21,7 @@ const TESLA_SCOPES = "energy_device_data openid user_data offline_access";
 
 const BLOB_STORE_NAME = 'tokens'; // A dedicated name for your blob store
 const NETLIFY_SITE_ID = 'fb1b3154-94a6-43bf-8351-47581306b096';
-const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN; // Optional, if you need to authenticate with Netlify Blobs for local dev
+const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN; 
 // A blob key to store the access token for caching
 const TESLA_ACCESS_TOKEN_BLOB_KEY = 'tesla_access_token';
 const CURRENT_STATE_BLOB_KEY = 'tesla_current_state';
@@ -249,6 +252,18 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
 
 export const handler = async (event, context) => {
     connectLambda(event);
+
+    const providedApiKey = event.headers['x-api-key'];
+    // Check if the provided key matches the secret key
+    if (!providedApiKey || providedApiKey !== BOARD_API_KEY) {
+        console.warn('Unauthorized request received.');
+        return {
+            statusCode: 401,
+            body: JSON.stringify({ error: 'Unauthorized' }),
+        };
+    }
+
+
     // A helper function to create a JSON Response object
     function jsonResponse(statusCode, data) {
         return {
