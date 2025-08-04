@@ -12,7 +12,7 @@ const TESLA_CLIENT_ID = process.env.TESLA_CLIENT_ID;
 const TESLA_CLIENT_SECRET = process.env.TESLA_CLIENT_SECRET;
 const TESLA_TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token";
 const TESLA_API_URL = "https://fleet-api.prd.na.vn.cloud.tesla.com";
-const TESLA_SCOPES = "energy_site_data";
+const TESLA_SCOPES = "energy_device_data openid user_data offline_access";
 
 const BLOB_STORE_NAME = 'tokens'; // A dedicated name for your blob store
 const NETLIFY_SITE_ID = 'fb1b3154-94a6-43bf-8351-47581306b096';
