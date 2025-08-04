@@ -3,108 +3,108 @@ import { getStore, connectLambda } from '@netlify/blobs';
 import { sendPushoverAuthUrlNotification } from '../../utilities/pushover.js';
 
 // The API key for this service to only allow authorized requests
-const BOARD_API_KEY = process.env.API_KEY; 
+const BOARD_API_KEY = process.env.API_KEY;
 
 const BLOB_STORE_NAME = 'tokens';
 const NETLIFY_SITE_ID = 'fb1b3154-94a6-43bf-8351-47581306b096';
-const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN; 
+const NETLIFY_AUTH_TOKEN = process.env.NETLIFY_AUTH_TOKEN;
 
 // Spotify API config from env
-    const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-    const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-    const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
-    const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize';
-    const SPOTIFY_CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
-    const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-playback-state';
-    const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
-    const SPOTIFY_TOKEN_BLOB_KEY = 'spotify_access_token';
-    const SPOTIFY_REFRESH_BLOB_KEY = 'spotify_refresh_token';
-    const SPOTIFY_EXPIRES_BLOB_KEY = 'spotify_expires_at';
-    const SPOTIFY_AUTH_STATE_KEY = 'spotify_auth_state';
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize';
+const SPOTIFY_CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
+const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-playback-state';
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
+const SPOTIFY_TOKEN_BLOB_KEY = 'spotify_access_token';
+const SPOTIFY_REFRESH_BLOB_KEY = 'spotify_refresh_token';
+const SPOTIFY_EXPIRES_BLOB_KEY = 'spotify_expires_at';
+const SPOTIFY_AUTH_STATE_KEY = 'spotify_auth_state';
 
 
-    // Return or refresh the Spotify access token
-    async function getValidSpotifyToken() {
-        const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
-        const tokenData = await store.get(SPOTIFY_TOKEN_BLOB_KEY, { type: 'json' });
-        const refreshToken = await store.get(SPOTIFY_REFRESH_BLOB_KEY);
-        const expiresAt = parseInt(await store.get(SPOTIFY_EXPIRES_BLOB_KEY) || '0', 10);
-        const now = Date.now();
-        if (tokenData && tokenData.access_token && expiresAt > now) {
-            return tokenData.access_token;
-        } else if (refreshToken) {
-            // Refresh token
-            const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
-            const params = new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-            });
-            const resp = await fetch(SPOTIFY_TOKEN_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Basic ${authHeader}`,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: params.toString(),
-            });
-            const data = await resp.json();
-            if (resp.ok && data.access_token) {
-                const newExpiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-                await store.setJSON(SPOTIFY_TOKEN_BLOB_KEY, data);
-                await store.set(SPOTIFY_EXPIRES_BLOB_KEY, String(newExpiresAt));
-                if (data.refresh_token) await store.set(SPOTIFY_REFRESH_BLOB_KEY, data.refresh_token);
-                return data.access_token;
-            } else {
-                // Refresh failed, clear tokens
-                await store.setJSON(SPOTIFY_TOKEN_BLOB_KEY, null);
-                await store.set(SPOTIFY_REFRESH_BLOB_KEY, null);
-                await store.set(SPOTIFY_EXPIRES_BLOB_KEY, null);
-                return await authorizeSpotify();
-            }
+// Return or refresh the Spotify access token
+async function getValidSpotifyToken() {
+    const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
+    const tokenData = await store.get(SPOTIFY_TOKEN_BLOB_KEY, { type: 'json' });
+    const refreshToken = await store.get(SPOTIFY_REFRESH_BLOB_KEY);
+    const expiresAt = parseInt(await store.get(SPOTIFY_EXPIRES_BLOB_KEY) || '0', 10);
+    const now = Date.now();
+    if (tokenData && tokenData.access_token && expiresAt > now) {
+        return tokenData.access_token;
+    } else if (refreshToken) {
+        // Refresh token
+        const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+        const params = new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+        });
+        const resp = await fetch(SPOTIFY_TOKEN_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${authHeader}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params.toString(),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.access_token) {
+            const newExpiresAt = Date.now() + (data.expires_in * 1000) - 60000;
+            await store.setJSON(SPOTIFY_TOKEN_BLOB_KEY, data);
+            await store.set(SPOTIFY_EXPIRES_BLOB_KEY, String(newExpiresAt));
+            if (data.refresh_token) await store.set(SPOTIFY_REFRESH_BLOB_KEY, data.refresh_token);
+            return data.access_token;
         } else {
-            // No valid token, need full re-authorization
+            // Refresh failed, clear tokens
+            await store.setJSON(SPOTIFY_TOKEN_BLOB_KEY, null);
+            await store.set(SPOTIFY_REFRESH_BLOB_KEY, null);
+            await store.set(SPOTIFY_EXPIRES_BLOB_KEY, null);
             return await authorizeSpotify();
         }
+    } else {
+        // No valid token, need full re-authorization
+        return await authorizeSpotify();
     }
-
-    
-    // Start OAuth flow, send pushover, poll for code, exchange for token
-    async function authorizeSpotify() {
-        // Generate state
-        const state = Math.random().toString(36).substring(2) + Date.now();
-        const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
-        await store.set(SPOTIFY_AUTH_STATE_KEY, state);
-        // Build auth URL
-        const params = new URLSearchParams({
-            client_id: SPOTIFY_CLIENT_ID,
-            response_type: 'code',
-            redirect_uri: SPOTIFY_REDIRECT_URI,
-            scope: SPOTIFY_SCOPES,
-            state: state
-        });
-        const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
-        console.log('Spotify auth URL:', authUrl);
-        await sendPushoverAuthUrlNotification(authUrl, {
-            title: 'Spotify OAuth Authorization',
-            message: `Spotify authorization required.\n\nOpen this URL to authorize:\n${authUrl}`,
-            url_title: 'Authorize Spotify App',
-        });
-
-        return {'statusCode': 418, 'body': 'Authorization URL sent to user. Please complete the authorization process.'};
-       
-    }
+}
 
 
-    // A helper function to create a JSON Response object
-    function jsonResponse(statusCode, data) {
-        return {
-            statusCode: statusCode,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        };
-    }
+// Start OAuth flow, send pushover, poll for code, exchange for token
+async function authorizeSpotify() {
+    // Generate state
+    const state = Math.random().toString(36).substring(2) + Date.now();
+    const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
+    await store.set(SPOTIFY_AUTH_STATE_KEY, state);
+    // Build auth URL
+    const params = new URLSearchParams({
+        client_id: SPOTIFY_CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        scope: SPOTIFY_SCOPES,
+        state: state
+    });
+    const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
+    console.log('Spotify auth URL:', authUrl);
+    await sendPushoverAuthUrlNotification(authUrl, {
+        title: 'Spotify OAuth Authorization',
+        message: `Spotify authorization required.\n\nOpen this URL to authorize:\n${authUrl}`,
+        url_title: 'Authorize Spotify App',
+    });
+
+    return { 'statusCode': 418, 'body': 'Authorization URL sent to user. Please complete the authorization process.' };
+
+}
+
+
+// A helper function to create a JSON Response object
+function jsonResponse(statusCode, data) {
+    return {
+        statusCode: statusCode,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    };
+}
 
 
 // The main handler function for the Netlify Function.

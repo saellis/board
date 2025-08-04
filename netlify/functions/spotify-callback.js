@@ -9,9 +9,12 @@ const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPOTIFY_TOKEN_BLOB_KEY = 'spotify_access_token';
 const SPOTIFY_REFRESH_BLOB_KEY = 'spotify_refresh_token';
 const SPOTIFY_EXPIRES_BLOB_KEY = 'spotify_expires_at';
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || `${process.env.URL}/.netlify/functions/spotify-callback`;
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
 export const handler = async (event, context) => {
+    console.log('Spotify callback handler invoked');
     connectLambda(event);
     // Exchange code for token
     const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
