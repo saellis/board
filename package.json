@@ -13,5 +13,7 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/saellis/board#readme",
   "devDependencies": {
+    "@netlify/blobs": "^10.0.8",
+    "node-fetch": "^2.6.1"
   }
 }
