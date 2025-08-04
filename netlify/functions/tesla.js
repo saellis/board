@@ -10,7 +10,9 @@ import { getStore, connectLambda } from '@netlify/blobs';
 // Tesla API Configuration from environment variables
 const TESLA_CLIENT_ID = process.env.TESLA_CLIENT_ID;
 const TESLA_CLIENT_SECRET = process.env.TESLA_CLIENT_SECRET;
-const TESLA_TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token";
+const TESLA_TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
+const TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/authorize"
+
 const TESLA_API_URL = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 const TESLA_SCOPES = "energy_device_data openid user_data offline_access";
 
@@ -73,9 +75,8 @@ async function getValidTeslaToken(callbackUrl) {
     try {
         // Try to load token from blob store
         const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
-        const tokenData = await store.get(TESLA_ACCESS_TOKEN_BLOB_KEY);
+        const tokenData = await store.get(TESLA_ACCESS_TOKEN_BLOB_KEY, {type: "json"});
         const now = Date.now();
-
         if (tokenData && tokenData.accessToken && tokenData.expiresAt && tokenData.expiresAt > now) {
             // Token exists and is not expired
             console.log("Token loaded from blob store and is still valid.");
@@ -89,26 +90,16 @@ async function getValidTeslaToken(callbackUrl) {
             } else {
                 // Refresh failed, clear blob
                 await store.setJSON(TESLA_ACCESS_TOKEN_BLOB_KEY, null);
-                // Attempt full reauthorization if context provided
-                if (callbackUrl) {
-                    return await authorize(callbackUrl);
-                }
-                return null;
+                return await authorize(callbackUrl);
             }
         } else {
             // No valid token, need full re-authorization
             console.log("No valid token or refresh token available in blob store. Starting full reauthorization if possible.");
-            if (callbackUrl) {
-                return await authorize(callbackUrl);
-            }
-            return null;
+            return await authorize(callbackUrl);
         }
     } catch (error) {
         console.error("Error loading token from blob store:", error);
-        if (callbackUrl) {
-            return await authorize(callbackUrl);
-        }
-        return null;
+        return await authorize(callbackUrl);
     }
 }
 
@@ -130,7 +121,7 @@ async function authorize(callbackUrl) {
         scope: TESLA_SCOPES,
         state: state
     });
-    const authUrl = `${TESLA_TOKEN_URL.replace('/token', '/authorize')}?${params.toString()}`;
+    const authUrl = `${TESLA_AUTH_URL}?${params.toString()}`;
 
     // 4. Return the auth URL to the client (or redirect, depending on environment)
     console.log(`Please visit this URL to authorize: ${authUrl}`);
@@ -173,12 +164,15 @@ async function authorize(callbackUrl) {
             redirect_uri: callbackUrl,
             scope: TESLA_SCOPES
         };
-        console.log('Exchanging authorization code for access token:', payload);
         const response = await fetch(TESLA_TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
+        if (!response.ok) {
+            console.error('Failed to exchange code for token:', response.status, response.statusText);
+            return null;
+        }
         const data = await response.json();
         if (response.ok && data.access_token) {
             const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
@@ -198,23 +192,6 @@ async function authorize(callbackUrl) {
         console.error('Exception during token exchange:', error);
         return null;
     }
-}
-
-/**
- * Helper to build the Tesla OAuth authorization URL.
- * @param {string} redirectUri - The redirect URI to use for the OAuth flow.
- * @returns {string} The full Tesla OAuth URL.
- */
-function buildTeslaAuthUrl(redirectUri) {
-    const state = Math.random().toString(36).substring(2) + Date.now();
-    const params = new URLSearchParams({
-        client_id: TESLA_CLIENT_ID,
-        redirect_uri: redirectUri,
-        response_type: 'code',
-        scope: TESLA_SCOPES,
-        state: state
-    });
-    return `${TESLA_TOKEN_URL.replace('/token', '/authorize')}?${params.toString()}`;
 }
 
 /**
@@ -245,7 +222,7 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
         const data = await response.json();
 
         if (response.ok && data.access_token) {
-            console.log("Successfully refreshed access token (blob logic).");
+            console.log("Successfully refreshed access token.");
             const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
             // Save new token data, preserving refresh_token if not returned
             const store = getStore(BLOB_STORE_NAME, NETLIFY_SITE_ID, NETLIFY_AUTH_TOKEN);
@@ -256,11 +233,11 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
             });
             return data.access_token;
         } else {
-            console.error("Failed to refresh token (blob logic):", data);
+            console.error("Failed to refresh token:", data);
             return null;
         }
     } catch (error) {
-        console.error("Exception during token refresh (blob logic):", error);
+        console.error("Exception during token refresh:", error);
         return null;
     }
 }
@@ -272,8 +249,6 @@ async function refreshTeslaTokenWithBlob(refreshToken) {
 
 export const handler = async (event, context) => {
     connectLambda(event);
-
-
     // A helper function to create a JSON Response object
     function jsonResponse(statusCode, data) {
         return {
@@ -294,9 +269,7 @@ export const handler = async (event, context) => {
 
     // Build the callback URL for OAuth (must match what you set in Tesla app settings)
     const TESLA_REDIRECT_URI_BASE = process.env.TESLA_REDIRECT_URI_BASE || '/.netlify/functions/tesla-callback';
-    const callbackUrl = process.env.URL
-        ? `${process.env.URL}${TESLA_REDIRECT_URI_BASE}`
-        : `http://localhost:8080${TESLA_REDIRECT_URI_BASE}`;
+    const callbackUrl = `${process.env.URL}${TESLA_REDIRECT_URI_BASE}`;
 
     const accessToken = await getValidTeslaToken(callbackUrl);
     if (!accessToken) {
@@ -343,13 +316,10 @@ export const handler = async (event, context) => {
             });
         }
 
-        // 3. Extract and return the solar generation value
-        const solarGenerationKw = liveStatusData.response.solar_power / 1000.0;
-        return jsonResponse(200, {
-            message: 'Successfully retrieved Tesla solar generation data.',
-            solarGenerationKw: solarGenerationKw,
-            lastUpdated: new Date().toISOString()
-        });
+        // 3. Return the solar generation value
+        // const solarGenerationKw = liveStatusData.response.solar_power / 1000.0;
+        console.log(liveStatusData);
+        return jsonResponse(200, liveStatusData.response);
 
     } catch (error) {
         console.error('An unexpected error occurred:', error);
