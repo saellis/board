@@ -117,7 +117,7 @@ function smallestImageUrl(images, min_width = 32) {
 
 function createGammaTable() {
     const gamma_table = new Array(256);
-    const gamma = 2.0;
+    const gamma = 1.3;
     for (let i = 0; i < 256; i++) {
         gamma_table[i] = Math.floor(Math.pow(i / 255.0, gamma) * 255.0 + 0.5);
     }
