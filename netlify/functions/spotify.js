@@ -120,14 +120,7 @@ function resizeImage(imageUrl) {
             jimp.read(imageUrl)
                 .then(image => {
                 image.resize(32, 32);
-                // Attempt to apply gamma correction
-                // Note: jimp does not have a direct gamma correction method, so this is a workaround
-                // const gammaValue = 1.8;
-                // image.color([
-                //     { apply: 'red', params: [{ fn: 'power', val: 1 / gammaValue }] },
-                //     { apply: 'green', params: [{ fn: 'power', val: 1 / gammaValue }] },
-                //     { apply: 'blue', params: [{ fn: 'power', val: 1 / gammaValue }] }
-                // ]);
+                image.brightness(0.1); // LED boards are BRIGHT
                 return image.getBufferAsync(jimp.MIME_BMP);
             })
             .then(resizedBuffer => {
