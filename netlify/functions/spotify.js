@@ -1,3 +1,4 @@
+import jimp from 'jimp';
 import fetch from 'node-fetch';
 import { getStore, connectLambda } from '@netlify/blobs';
 import { sendPushoverAuthUrlNotification } from '../../utilities/pushover.js';
@@ -106,6 +107,37 @@ function jsonResponse(statusCode, data) {
     };
 }
 
+function smallestImageUrl(images, min_width = 32) {
+    if (!images || images.length === 0) return null;
+    // Sort images by size (width * height) and return the smallest that is at least min_width wide.
+    return images
+        .filter(img => (img.width || 0) >= min_width)
+        .sort((a, b) => (a.width || 0) * (a.height || 0) - (b.width || 0) * (b.height || 0))[0]?.url || null;
+}
+
+function resizeImage(imageUrl) {
+    return new Promise((resolve, reject) => {
+            jimp.read(imageUrl)
+                .then(image => {
+                image.resize(32, 32);
+                // Attempt to apply gamma correction
+                // Note: jimp does not have a direct gamma correction method, so this is a workaround
+                // const gammaValue = 1.8;
+                // image.color([
+                //     { apply: 'red', params: [{ fn: 'power', val: 1 / gammaValue }] },
+                //     { apply: 'green', params: [{ fn: 'power', val: 1 / gammaValue }] },
+                //     { apply: 'blue', params: [{ fn: 'power', val: 1 / gammaValue }] }
+                // ]);
+                return image.getBufferAsync(jimp.MIME_BMP);
+            })
+            .then(resizedBuffer => {
+                resolve(resizedBuffer);
+            })
+            .catch(err => {
+                reject(err);
+            });
+    });
+}
 
 // The main handler function for the Netlify Function.
 export const handler = async (event, context) => {
@@ -143,9 +175,24 @@ export const handler = async (event, context) => {
         }
         const data = await resp.json();
         if (resp.ok && data && data.item) {
+            const imageUrl = smallestImageUrl(data.item.album.images);
+            let bmpBuffer = null;
+            if (imageUrl) {
+                try {
+                    bmpBuffer = await resizeImage(imageUrl);
+                } catch (err) {
+                    console.error('Error resizing image:', err);
+                }
+            }
+
             const song = data.item.name;
             const artist = data.item.artists.map(a => a.name).join(', ');
-            return jsonResponse(200, { song, artist, status: data.is_playing ? 'Playing' : 'Paused' });
+            return jsonResponse(200, {
+                song,
+                artist,
+                status: data.is_playing ? 'Playing' : 'Paused',
+                albumArtBmp: bmpBuffer ? bmpBuffer.toString('base64') : null
+            });
         } else {
             return jsonResponse(200, { song: null, artist: null, status: 'Nothing playing' });
         }

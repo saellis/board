@@ -16,5 +16,8 @@
     "@netlify/blobs": "^10.0.8",
     "node-fetch": "^2.6.1"
   },
+  "dependencies": {
+    "jimp": "^0.22.10"
+  },
   "type": "module"
 }

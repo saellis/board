@@ -3,6 +3,7 @@
   functions = "netlify/functions"
 
 [dev]
+  autoLaunch = false
   [dev.https]
     certFile = "cert.pem"
     keyFile = "key.pem"
