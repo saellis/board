@@ -115,12 +115,32 @@ function smallestImageUrl(images, min_width = 32) {
         .sort((a, b) => (a.width || 0) * (a.height || 0) - (b.width || 0) * (b.height || 0))[0]?.url || null;
 }
 
+function createGammaTable() {
+    const gamma_table = new Array(256);
+    const gamma = 2.4;
+    for (let i = 0; i < 256; i++) {
+        gamma_table[i] = Math.floor(Math.pow(i / 255.0, gamma) * 255.0 + 0.5);
+    }
+    return gamma_table;
+}
+
 function resizeImage(imageUrl) {
+    const gamma_table = createGammaTable();
     return new Promise((resolve, reject) => {
-            jimp.read(imageUrl)
-                .then(image => {
+        jimp.read(imageUrl)
+            .then(image => {
                 image.resize(32, 32);
-                image.brightness(0.1); // LED boards are BRIGHT
+                image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
+                    // Get the current R, G, B values from the image data
+                    const r = image.bitmap.data[idx];
+                    const g = image.bitmap.data[idx + 1];
+                    const b = image.bitmap.data[idx + 2];
+
+                    // Look up the new gamma-corrected values from the table
+                    image.bitmap.data[idx] = gamma_table[r];
+                    image.bitmap.data[idx + 1] = gamma_table[g];
+                    image.bitmap.data[idx + 2] = gamma_table[b];
+                });
                 return image.getBufferAsync(jimp.MIME_BMP);
             })
             .then(resizedBuffer => {
