@@ -117,7 +117,7 @@ function smallestImageUrl(images, min_width = 32) {
 
 function createGammaTable() {
     const gamma_table = new Array(256);
-    const gamma = 1.1;
+    const gamma = 1.3;
     for (let i = 0; i < 256; i++) {
         gamma_table[i] = Math.floor(Math.pow(i / 255.0, gamma) * 255.0 + 0.5);
     }
@@ -130,17 +130,17 @@ function resizeImage(imageUrl) {
         jimp.read(imageUrl)
             .then(image => {
                 image.resize(32, 32);
-                // image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
-                //     // Get the current R, G, B values from the image data
-                //     const r = image.bitmap.data[idx];
-                //     const g = image.bitmap.data[idx + 1];
-                //     const b = image.bitmap.data[idx + 2];
+                image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
+                    // Get the current R, G, B values from the image data
+                    const r = image.bitmap.data[idx];
+                    const g = image.bitmap.data[idx + 1];
+                    const b = image.bitmap.data[idx + 2];
 
-                //     // Look up the new gamma-corrected values from the table
-                //     image.bitmap.data[idx] = gamma_table[r];
-                //     image.bitmap.data[idx + 1] = gamma_table[g];
-                //     image.bitmap.data[idx + 2] = gamma_table[b];
-                // });
+                    // Look up the new gamma-corrected values from the table
+                    image.bitmap.data[idx] = gamma_table[r];
+                    image.bitmap.data[idx + 1] = gamma_table[g];
+                    image.bitmap.data[idx + 2] = gamma_table[b];
+                });
                 return image.getBufferAsync(jimp.MIME_BMP);
             })
             .then(resizedBuffer => {
