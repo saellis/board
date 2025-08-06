@@ -141,6 +141,7 @@ function resizeImage(imageUrl) {
                     image.bitmap.data[idx + 1] = gamma_table[g];
                     image.bitmap.data[idx + 2] = gamma_table[b];
                 });
+                image.brightness(-0.5); // Slightly darken the image
                 return image.getBufferAsync(jimp.MIME_BMP);
             })
             .then(resizedBuffer => {
