@@ -117,7 +117,7 @@ function smallestImageUrl(images, min_width = 32) {
 
 function createGammaTable() {
     const gamma_table = new Array(256);
-    const gamma = 1.0;
+    const gamma = 1.8;
     for (let i = 0; i < 256; i++) {
         gamma_table[i] = Math.floor(Math.pow(i / 255.0, gamma) * 255.0 + 0.5);
     }
@@ -141,7 +141,7 @@ function resizeImage(imageUrl) {
                     image.bitmap.data[idx + 1] = gamma_table[g];
                     image.bitmap.data[idx + 2] = gamma_table[b];
                 });
-                image.brightness(-0.5); // Slightly darken the image
+                image.brightness(-0.1);
                 return image.getBufferAsync(jimp.MIME_BMP);
             })
             .then(resizedBuffer => {
