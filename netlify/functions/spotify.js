@@ -129,19 +129,8 @@ function resizeImage(imageUrl) {
     return new Promise((resolve, reject) => {
         jimp.read(imageUrl)
             .then(image => {
-                image.resize(32, 32);
-                image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
-                    // Get the current R, G, B values from the image data
-                    const r = image.bitmap.data[idx];
-                    const g = image.bitmap.data[idx + 1];
-                    const b = image.bitmap.data[idx + 2];
-
-                    // Look up the new gamma-corrected values from the table
-                    image.bitmap.data[idx] = gamma_table[r];
-                    image.bitmap.data[idx + 1] = gamma_table[g];
-                    image.bitmap.data[idx + 2] = gamma_table[b];
-                });
-                return image.getBufferAsync(jimp.MIME_BMP);
+                return image.resize(32, 32)
+                    .getBufferAsync(jimp.MIME_PNG);
             })
             .then(resizedBuffer => {
                 resolve(resizedBuffer);
@@ -189,10 +178,11 @@ export const handler = async (event, context) => {
         const data = await resp.json();
         if (resp.ok && data && data.item) {
             const imageUrl = smallestImageUrl(data.item.album.images);
-            let bmpBuffer = null;
+            let pngBuffer = null;
             if (imageUrl) {
                 try {
-                    bmpBuffer = await resizeImage(imageUrl);
+                    pngBuffer = await resizeImage(imageUrl);
+                    console.log(pngBuffer)
                 } catch (err) {
                     console.error('Error resizing image:', err);
                 }
@@ -204,7 +194,7 @@ export const handler = async (event, context) => {
                 song,
                 artist,
                 status: data.is_playing ? 'Playing' : 'Paused',
-                albumArtBmp: bmpBuffer ? bmpBuffer.toString('base64') : null
+                albumArtPng: pngBuffer ? pngBuffer.toString('base64') : null
             });
         } else {
             return jsonResponse(200, { song: null, artist: null, status: 'Nothing playing' });
